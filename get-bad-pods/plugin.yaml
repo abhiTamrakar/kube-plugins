@@ -1,0 +1,5 @@
+name: get-bad-pods
+shortDesc: "Gets the pods with count of errors"
+longDesc: "Checks the pod along with their underlying containers for errors and print the count. The script assumes the kube config be at default location or provided as the first argument to the plug-in."
+example: "./get_pod_errors.sh"
+command: "./get_pod_errors.sh"
