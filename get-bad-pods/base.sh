@@ -35,10 +35,10 @@ fatal()
 checkcmd()
 {
   #check if command exists
-  local iscmd=$1
-  if [ ! -e "$iscmd" -a ! -s "$iscmd" ]
+  local cmd=$1
+  if [ -z "${!cmd}" ]
   then
-    fatal "$iscmd MISSING"
+    fatal "check if kubectl is installed !!!"
   fi
 }
 

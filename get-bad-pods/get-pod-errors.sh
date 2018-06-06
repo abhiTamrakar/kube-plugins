@@ -39,10 +39,7 @@ exit 0
 }
 
 #check if basic commands are found
-for cmd in $KUBE $GET $AWK;
-do
-  checkcmd $cmd
-done
+checkcmd KUBE
 #
 #set the ground
 if [ $# -lt 1 ]; then
