@@ -46,7 +46,7 @@ print_table()
 {
   #prepare the ground
   sep='|'
-  printf '\n%s\t%45s\t%18s\n' "POD NAME" "CONTAINER NAME" "NUMBER OF ERROR/EXCEPTION"
+  printf '\n%s\t%45s\t%20s\n' "POD NAME" "CONTAINER NAME" "NUMBER OF ERROR/EXCEPTION"
   printf '%s\n' "---------------------------------------------------------------------------"
   printf '%s\n' "$@"| column -s"$sep" -t
   printf '\n'
@@ -67,23 +67,55 @@ then
 fi
 }
 
+#get events for pods in errored state
+get_pod_events()
+{
+  info "There were ${#ERRORED[@]} errored pods found."
+  if [ ${#ERRORED[@]} -ne 0 ]
+  then
+      info "Getting events per errored pods."
+      for CULPRIT in ${ERRORED[@]}
+      do
+        info "POD: $CULPRIT"
+        info
+        $KUBE get events \
+        --field-selector=involvedObject.name=$CULPRIT \
+        -ocustom-columns=LASTSEEN:.lastTimestamp,REASON:.reason,MESSAGE:.message \
+        --all-namespaces \
+        --ignore-not-found=true
+        info '-----------------------------------------------------------'
+      done
+  fi
+}
+
 #define the logic
 get_pod_errors()
 {
   for NAMESPACE in ${namespaces[@]}
   do
-    info "Getting errored pods for Namespace: $NAMESPACE"
+    info "Scanning pod logs for errors, Namespace: $NAMESPACE"
     while IFS=' ' read -r POD CONTAINERS
     do
       for CONTAINER in ${CONTAINERS//,/ }
       do
-        STATE=("${STATE[@]}" \
-        "$POD|$CONTAINER|$($KUBE logs --since=1h --tail=20 $POD -c $CONTAINER -n $NAMESPACE 2>/dev/null| \
-        $GET -ci 'error|exception')" \
-        )
+        COUNT=$($KUBE logs --since=1h --tail=20 $POD -c $CONTAINER -n $NAMESPACE 2>/dev/null| \
+        $GET -c '^error|Error|ERROR|Warn|WARN')
+        if [ $COUNT -gt 0 ]
+        then
+            STATE=("${STATE[@]}" "$POD|$CONTAINER|$COUNT")
+        else
+        #catch pods in errored state
+            ERRORED=($($KUBE get pods -n $NAMESPACE | \
+                sed '1d' |\
+                awk '!/Running/ {print $1}' ORS=" ") \
+                )
+        fi
       done
     done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name|sed '1d')
+#    info "There were ${#STATE[@]} pods found with error/warning in logs"
     print_table ${STATE[@]:-None}
+    get_pod_events
     STATE=()
+    ERRORED=()
   done
 }
