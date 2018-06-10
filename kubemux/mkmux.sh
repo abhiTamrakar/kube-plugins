@@ -108,7 +108,7 @@ start_server()
 
 check_session()
 {
-  if $TMUX -q has-session -t $NEWSESSION;
+  if $TMUX has-session -t $NEWSESSION 2>/dev/null;
   then
     is_session=0
   else
@@ -131,9 +131,14 @@ start_split()
     start_server
     create_session
   fi
-  $TMUX selectp -t $n \; \
-  splitw $COMMAND \; \
-  select-layout tiled \;
+  $TMUX selectp -t $n
+  if [ $n -eq 0 ]; then
+    # start new window
+    $TMUX neww $COMMAND
+  else
+    $TMUX splitw $COMMAND
+    $TMUX select-layout tiled
+  fi
 }
 
 run_kube_command()
@@ -189,9 +194,7 @@ attach_sessions()
   then
     usage
   fi
-  $TMUX selectp -t 1 \; \
-  new-window -t $NEWSESSION:1 -n start \; \
-  selectw -t $NEWSESSION:0 \; \
+  $TMUX selectw -t $NEWSESSION:1 \; \
   attach-session -t $NEWSESSION\; \
   setw -g monitor-activity on \; \
   set -g visual-activity on \; \
