@@ -2,7 +2,7 @@
 # AUTHOR: Abhishek Tamrakar
 # EMAIL: abhishek.tamrakar08@gmail.com
 # VERSION: 0.0.1
-#	LICENSE: Copyright (C) 2018 Abhishek Tamrakar
+# LICENSE: Copyright (C) 2018 Abhishek Tamrakar
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -120,7 +120,7 @@ create_session()
 {
   $TMUX new-session -d -s $NEWSESSION \
     || fatal "Cannot create session"
-  $TMUX set-window-option -g automatic-rename on
+  $TMUX set-window-option -g automatic-rename off
 }
 
 start_split()
@@ -134,10 +134,10 @@ start_split()
   $TMUX selectp -t $n
   if [ $n -eq 0 ]; then
     # start new window
-    $TMUX neww $COMMAND
+    $TMUX neww $COMMAND -n $POD
   else
-    $TMUX splitw $COMMAND
-    $TMUX select-layout tiled
+    $TMUX splitw $COMMAND \; \
+    select-layout tiled \;
   fi
 }
 
@@ -150,6 +150,10 @@ run_kube_command()
   n=0
   while IFS=' ' read -r POD CONTAINERS
   do
+    if [ $n -ne 0 ]
+    then
+       $TMUX neww $COMMAND -n $POD
+    fi
     for CONTAINER in ${CONTAINERS//,/ }
     do
       if [ x$POD = x -o x$CONTAINER = x ]; then
@@ -157,7 +161,7 @@ run_kube_command()
         warn "Looks like there is a problem getting pods data."
         break
       fi
-      COMMAND="$KUBE logs --since=1h --tail=20 $POD -c $CONTAINER -n $NAMESPACE"
+      COMMAND="$KUBE logs -f $POD -c $CONTAINER -n $NAMESPACE"
       start_split
     done
     ((n+=1))
@@ -195,11 +199,7 @@ attach_sessions()
     usage
   fi
   $TMUX selectw -t $NEWSESSION:1 \; \
-  attach-session -t $NEWSESSION\; \
-  setw -g monitor-activity on \; \
-  set -g visual-activity on \; \
-  set-window-option -g window-status-current-bg yellow \; \
-  set-option -g mouse-select-pane on \;
+  attach-session -t $NEWSESSION\; 
 }
 #
 # interrupt or quit
@@ -217,7 +217,7 @@ do
       check_arguments $1;
       NEWSESSION=$1
       ;;
-    kube|k ) check_commands $KUBE
+    kube|k ) check_commands KUBE
       shift;
       ARGS=$1
       # extract the information
