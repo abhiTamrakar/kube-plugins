@@ -50,24 +50,58 @@ fatal()
   exit 1
 }
 
+copyright()
+{
+  printf '\n%s\n%s\n' "VERSION: 0.0.1" "Copyright (C) 2018 Abhishek Tamrakar"
+  exit 0
+}
+
 usage()
 {
   cat <<EOF
-  USAGE: $SCRIPT [options]
+ 
+  Copyright (C) 2018 Abhishek Tamrakar
+
+  USAGE: $SCRIPT [options] -[hvskldv]
 
   [options]
-  help|h      Display this usage and exit.
+	h|   Display this usage and exit.
 
-  verbose|v   Enable verbose output.
+  	v|   Enable verbose output.
 
-  session|s   Sets Session name, otherwise defaultis set.
+  	s|   Sets Session name, otherwise defaults to script name.
 
-  kube|k      Tails pod log on kubernetes cluster.
-              NOTE:Can also be used as kubernetes plugin.
+  	k|   Tails pod log on kubernetes cluster.
+             format: KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz
+             NOTE:Can also be used as kubernetes plugin.
 
-  logs|l      Tails all logfiles inside a directory.
+  	l|   Tails all logfiles inside a directory.
 
-  docker|d    Tails all docker running container logs.
+  	d|   Tails all docker running container logs.
+
+	V|   Prints the version information and exit.
+
+  EXAMPLES: 
+	# tails kubernetes cluster logs, config file and session name provided
+	$SCRIPT -k KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz -s test-session
+
+	# tails kubernetes cluster logs, only config file provided
+	$SCRIPT -k KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz
+
+	# tails kuberenetes cluster logs, default config used (~/.kube/config)
+	$SCRIPT -k KUBE_CONFIG=default,NAMESPACE=xyz
+
+	# tails all files from a directory
+	$SCRIPT -l /path/to/directory
+
+	# tails all runing docker container logs
+	$SCRIPT -d
+
+	# print usage
+	$SCRIPT -h
+
+	# print version information
+	$SCRIPT -V
 EOF
   exit 0
 }
@@ -86,9 +120,8 @@ check_commands()
 
 destroy()
 {
-  $TMUX kill-server \
-    && info "All sessions killed" \
-    || fatal "KILL failed! Was the server even running?"
+  $TMUX kill-server 2>/dev/null \
+    && info "All sessions killed"
 }
 
 check_arguments()
@@ -131,14 +164,9 @@ start_split()
     start_server
     create_session
   fi
-  $TMUX selectp -t $n
-  if [ $n -eq 0 ]; then
-    # start new window
-    $TMUX neww $COMMAND -n $POD
-  else
-    $TMUX splitw $COMMAND \; \
+  $TMUX selectp -t $n \; \
+    splitw $COMMAND \; \
     select-layout tiled \;
-  fi
 }
 
 run_kube_command()
@@ -150,10 +178,7 @@ run_kube_command()
   n=0
   while IFS=' ' read -r POD CONTAINERS
   do
-    if [ $n -ne 0 ]
-    then
-       $TMUX neww $COMMAND -n $POD
-    fi
+    $TMUX neww $COMMAND -n $POD 2>/dev/null
     for CONTAINER in ${CONTAINERS//,/ }
     do
       if [ x$POD = x -o x$CONTAINER = x ]; then
@@ -165,7 +190,10 @@ run_kube_command()
       start_split
     done
     ((n+=1))
-  done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name|sed '1d')
+  done< <($KUBE get pods -n $NAMESPACE \
+	--ignore-not-found=true \
+	-o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name| \
+	sed '1d')
 }
 
 run_docker_command()
@@ -203,28 +231,31 @@ attach_sessions()
 }
 #
 # interrupt or quit
-trap destroy 2 3 15
+trap destroy 2 3 15 EXIT
 #
-while [ $# -ne 0 ]
+while getopts "hvs:k:l:dV" option
 do
-  option=${1//-/}
   case $option in
-    help|h ) usage
+    h ) usage
       ;;
-    verbose|v ) VERBOSE=1
+    v ) VERBOSE=1
       ;;
-    session|s ) shift;
-      check_arguments $1;
-      NEWSESSION=$1
+    s )
+      NEWSESSION="$OPTARG"
+      check_arguments $NEWSESSION;
       ;;
-    kube|k ) check_commands KUBE
-      shift;
-      ARGS=$1
+    k ) check_commands KUBE
+      ARGS="$OPTARG"
       # extract the information
       CONFIG=${ARGS%%,*}
       PART=${ARGS##*,}
       export $CONFIG
       export $PART
+
+	# check for proper format
+      if [[ "${CONFIG%%=*}" = "KUBE_CONFIG" && "${PART%%=*}" = "NAMESPACE" ]]
+      then
+
       if [[ ! -e $KUBE_CONFIG || ! -s $KUBE_CONFIG ]]; then
         # provided config doesnt match
         if [[ -e $KUBE_DEFAULT && -s $KUBE_DEFAULT ]]; then
@@ -235,19 +266,44 @@ do
           fatal "Cannot find kube-config!"
         fi
       fi
-      run_kube_command
+      KUBE_FOUND=1
+      
+      else
+        fatal "Argument must be in expected format, see help."
+      fi
       ;;
-    logs|l ) shift;
-      check_arguments $1;
-      LOGLOCATION=$1
+    l )
+      LOGLOCATION="$OPTARG"
+      check_arguments $LOGLOCATION
       [ -d $LOGLOCATION -a -s $LOGLOCATION ] || fatal "Log location cannot be found!"
-      run_tail_command
+      LOG_FOUND=1
       ;;
-    docker|d ) check_commands DOCKER
-      run_docker_command
+    d ) check_commands DOCKER
+      DOCKER_FOUND=1
+      ;;
+    V ) copyright
+      ;;
+    : ) fatal "argument needed with -$OPTARG" >&2
+      ;;
+   \? ) fatal "invalid option -$OPTARG" >&2
       ;;
   esac
-  shift
 done
+shift $(($OPTIND - 1))
 #
-attach_sessions
+#run main
+if [ ${KUBE_FOUND:-0} -eq 1 ]
+then
+  run_kube_command
+  attach_sessions
+elif [ ${LOG_FOUND:-0} -eq 1 ]
+then
+  run_tail_command
+  attach_sessions
+elif [ ${DOCKER_FOUND:-0} -eq 1 ]
+then
+  run_docker_command
+  attach_sessions
+else
+  usage
+fi
