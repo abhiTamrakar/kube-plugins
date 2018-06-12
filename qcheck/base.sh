@@ -16,7 +16,7 @@
 #   limitations under the License.
 ##
 #define variables
-KUBE=$(which kubectl)
+KUBE=${KUBECTL_PLUGINS_CALLER}
 GET=$(which egrep)
 AWK=$(which awk)
 
@@ -70,10 +70,9 @@ fi
 #get events for pods in errored state
 get_pod_events()
 {
-  info "There were ${#ERRORED[@]} errored pods found."
+  info "${#ERRORED[@]} errored pods found."
   if [ ${#ERRORED[@]} -ne 0 ]
   then
-      info "Getting events per errored pods."
       for CULPRIT in ${ERRORED[@]}
       do
         info "POD: $CULPRIT"
@@ -93,7 +92,7 @@ get_pod_errors()
 {
   for NAMESPACE in ${namespaces[@]}
   do
-    info "Scanning pod logs for errors, Namespace: $NAMESPACE"
+    info "Scanning pod logs, Namespace: $NAMESPACE"
     while IFS=' ' read -r POD CONTAINERS
     do
       for CONTAINER in ${CONTAINERS//,/ }

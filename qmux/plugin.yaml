@@ -1,9 +1,12 @@
 name: qmux
 shortDesc: "Creates multiple terminal by following tail of pod logs"
 longDesc: "Uses tmux>=2.1 to create multiple terminal by following tail of pod logs, each pod has a separate window and containers split by panes"
-example: "qmux -n namepace"
+example: |
+  kubectl plugin qmux -n namepace
+  kubectl plugin qmux -n namepace -s testsession
+  kubectl plugin qmux -n namepace -s testsession --kubeconfig=/path/to/another/kubeconfig
 command: "./qmux"
 flags:
-  - name: "namespace"
-    shorthand: "n"
-    desc: "Optional. If not provided, the current namespace is used."
+  - name: "session"
+    shorthand: "S"
+    desc: "Optional. If not provided, a session name will be generated."

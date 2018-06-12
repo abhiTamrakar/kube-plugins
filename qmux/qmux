@@ -17,31 +17,21 @@
 #   limitations under the License.
 ##
 #define variables
-KUBE=$(which kubectl)
+KUBE=${KUBECTL_PLUGINS_CALLER}
 GET=$(which egrep)
 AWK=$(which awk)
 TMUX=$(which tmux)
-DOCKER=$(which docker)
-COMMAND=''
-readonly KUBE_DEFAULT=~/.kube/config
-SCRIPT=${0##*/}
 NEWSESSION="${SCRIPT%%.*}$RANDOM"
-VERBOSE=0
+SCRIPT=${0##*/}
 # define functions
 info()
 {
-  if [ $VERBOSE -eq 1 ]; then
-    #statements
-    printf '\n%s:%20s\n' "info" "$@"
-  fi
+  printf '\n%s:%20s\n' "info" "$@"
 }
 
 warn()
 {
-  if [ $VERBOSE -eq 1 ]; then
-    #statements
-    printf '\n%s:%20s\n' "warn" "$@"
-  fi
+  printf '\n%s:%20s\n' "warn" "$@"
 }
 
 fatal()
@@ -50,66 +40,9 @@ fatal()
   exit 1
 }
 
-copyright()
-{
-  printf '\n%s\n%s\n' "VERSION: 0.0.1" "Copyright (C) 2018 Abhishek Tamrakar"
-  exit 0
-}
-
-usage()
-{
-  cat <<EOF
- 
-  Copyright (C) 2018 Abhishek Tamrakar
-
-  USAGE: $SCRIPT [options] -[hvskldv]
-
-  [options]
-	h|   Display this usage and exit.
-
-  	v|   Enable verbose output.
-
-  	s|   Sets Session name, otherwise defaults to script name.
-
-  	k|   Tails pod log on kubernetes cluster.
-             format: KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz
-             NOTE:Can also be used as kubernetes plugin.
-
-  	l|   Tails all logfiles inside a directory.
-
-  	d|   Tails all docker running container logs.
-
-	V|   Prints the version information and exit.
-
-  EXAMPLES: 
-	# tails kubernetes cluster logs, config file and session name provided
-	$SCRIPT -k KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz -s test-session
-
-	# tails kubernetes cluster logs, only config file provided
-	$SCRIPT -k KUBE_CONFIG=/path/to/KUBECONFIG,NAMESPACE=xyz
-
-	# tails kuberenetes cluster logs, default config used (~/.kube/config)
-	$SCRIPT -k KUBE_CONFIG=default,NAMESPACE=xyz
-
-	# tails all files from a directory
-	$SCRIPT -l /path/to/directory
-
-	# tails all runing docker container logs
-	$SCRIPT -d
-
-	# print usage
-	$SCRIPT -h
-
-	# print version information
-	$SCRIPT -V
-EOF
-  exit 0
-}
-
 check_commands()
 {
-  local EXT=$1
-  CMDS=(GET AWK TMUX $EXT)
+  CMDS=(GET AWK TMUX KUBE)
   for cmd in ${CMDS[@]}
   do
      if [ x${!cmd} = x ]; then
@@ -124,15 +57,6 @@ destroy()
     && info "All sessions killed"
 }
 
-check_arguments()
-{
-  if [[  x$1 = x || $1 =~ ^-[A-Za-z0-9]+ ]]; then
-    #statements
-    usage
-    fatal "Argument is required!"
-  fi
-}
-
 start_server()
 {
   $TMUX start-server \
@@ -141,7 +65,7 @@ start_server()
 
 check_session()
 {
-  if $TMUX has-session -t $NEWSESSION 2>/dev/null;
+  if $TMUX has-session -t $THIS_SESSION 2>/dev/null;
   then
     is_session=0
   else
@@ -151,7 +75,7 @@ check_session()
 
 create_session()
 {
-  $TMUX new-session -d -s $NEWSESSION \
+  $TMUX new-session -d -s $THIS_SESSION \
     || fatal "Cannot create session"
   $TMUX set-window-option -g automatic-rename off
 }
@@ -171,26 +95,9 @@ start_split()
 
 run_kube_command()
 {
-  if [[ x"$ARGS" = x ]]
-  then
-    # only for use with plugin.
-    NAMESPACE=${KUBECTL_PLUGINS_LOCAL_FLAG_NAMESPACE:-$KUBECTL_PLUGINS_CURRENT_NAMESPACE}
-  else
-    CONFIG=${ARGS%%,*}
-    PART=${ARGS##*,}
-    export $CONFIG
-    export $PART
-      if [[ ! -e $KUBE_CONFIG || ! -s $KUBE_CONFIG ]]; then
-        # provided config doesnt match
-        if [[ -e $KUBE_DEFAULT && -s $KUBE_DEFAULT ]]; then
-          # use default
-          KUBE_CONFIG=$KUBE_DEFAULT
-          export KUBECONFIG=$KUBE_CONFIG
-        else
-          fatal "Cannot find kube-config!"
-        fi
-      fi
-  fi
+  # only for use with plugin.
+  NAMESPACE=${KUBECTL_PLUGINS_LOCAL_FLAG_NAMESPACE:-$KUBECTL_PLUGINS_CURRENT_NAMESPACE}
+  THIS_SESSION=${KUBECTL_PLUGINS_LOCAL_FLAG_SESSION:-$NEWSESSION}
   n=0
   while IFS=' ' read -r POD CONTAINERS
   do
@@ -212,91 +119,16 @@ run_kube_command()
 	sed '1d')
 }
 
-run_docker_command()
-{
-  n=0
-  CONTAINERS=($(sudo $DOCKER ps| awk '/Up/ {print $1}' ORS=' '))
-  for CONTAINER in ${CONTAINERS[@]}
-  do
-    COMMAND="sudo $DOCKER logs -f $CONTAINER"
-    start_split
-    ((n+=1))
-  done
-}
-
-run_tail_command()
-{
-  n=0
-  LOGFILES=($(sudo find ${LOGLOCATION}/ -type f -iname "*.log"| xargs echo))
-  for LOG in ${LOGFILES[@]}
-  do
-    COMMAND="sudo tailf $LOG"
-    start_split
-    ((n+=1))
-  done
-}
-
 attach_sessions()
 {
-  if [ x$NEWSESSION = x ]
-  then
-    usage
-  fi
-  $TMUX selectw -t $NEWSESSION:1 \; \
-  attach-session -t $NEWSESSION\; 
+  $TMUX selectw -t $THIS_SESSION:1 \; \
+  attach-session -t $THIS_SESSION\;
 }
 #
 # interrupt or quit
 trap destroy 2 3 15 EXIT
 #
-while getopts "hvs:k:l:dV" option
-do
-  case $option in
-    h ) usage
-      ;;
-    v ) VERBOSE=1
-      ;;
-    s )
-      NEWSESSION="$OPTARG"
-      check_arguments $NEWSESSION;
-      ;;
-    k ) check_commands KUBE
-      ARGS="$OPTARG"
-      KUBE_FOUND=1
-      ;;
-    l )
-      LOGLOCATION="$OPTARG"
-      check_arguments $LOGLOCATION
-      [ -d $LOGLOCATION -a -s $LOGLOCATION ] || fatal "Log location cannot be found!"
-      LOG_FOUND=1
-      ;;
-    d ) check_commands DOCKER
-      DOCKER_FOUND=1
-      ;;
-    V ) copyright
-      ;;
-    : ) fatal "argument needed with -$OPTARG" >&2
-      ;;
-   \? ) fatal "invalid option -$OPTARG" >&2
-      ;;
-  esac
-done
-shift $(($OPTIND - 1))
-#
-#run main
-if [ ${KUBE_FOUND:-0} -eq 1 ]
-then
-  run_kube_command
-  attach_sessions
-elif [ ${LOG_FOUND:-0} -eq 1 ]
-then
-  run_tail_command
-  attach_sessions
-elif [ ${DOCKER_FOUND:-0} -eq 1 ]
-then
-  run_docker_command
-  attach_sessions
-else
-  run_kube_command
-  attach_sessions 
-fi
+# run
+check_commands
+run_kube_command
+attach_sessions
