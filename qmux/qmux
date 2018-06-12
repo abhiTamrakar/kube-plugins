@@ -21,8 +21,8 @@ KUBE=${KUBECTL_PLUGINS_CALLER}
 GET=$(which egrep)
 AWK=$(which awk)
 TMUX=$(which tmux)
-NEWSESSION="${SCRIPT%%.*}$RANDOM"
 SCRIPT=${0##*/}
+NEWSESSION="${SCRIPT%%.*}$RANDOM"
 # define functions
 info()
 {
