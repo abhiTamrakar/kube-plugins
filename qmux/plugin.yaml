@@ -1,5 +1,9 @@
 name: qmux
 shortDesc: "Creates multiple terminal by following tail of pod logs"
 longDesc: "Uses tmux>=2.1 to create multiple terminal by following tail of pod logs, each pod has a separate window and containers split by panes"
-example: "qmux"
-command: "./qmux -k"
+example: "qmux -n namepace"
+command: "./qmux"
+flags:
+  - name: "namespace"
+    shorthand: "n"
+    desc: "Optional. If not provided, the current namespace is used."

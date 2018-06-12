@@ -171,9 +171,25 @@ start_split()
 
 run_kube_command()
 {
-  if [ x$NAMESPACE = x ]; then
-    # cant go ahead without namespace, a cluster could have numerous pods.
-    fatal "NAMESPACE is not defined, see usage."
+  if [[ x"$ARGS" = x ]]
+  then
+    # only for use with plugin.
+    NAMESPACE=${KUBECTL_PLUGINS_LOCAL_FLAG_NAMESPACE:-$KUBECTL_PLUGINS_CURRENT_NAMESPACE}
+  else
+    CONFIG=${ARGS%%,*}
+    PART=${ARGS##*,}
+    export $CONFIG
+    export $PART
+      if [[ ! -e $KUBE_CONFIG || ! -s $KUBE_CONFIG ]]; then
+        # provided config doesnt match
+        if [[ -e $KUBE_DEFAULT && -s $KUBE_DEFAULT ]]; then
+          # use default
+          KUBE_CONFIG=$KUBE_DEFAULT
+          export KUBECONFIG=$KUBE_CONFIG
+        else
+          fatal "Cannot find kube-config!"
+        fi
+      fi
   fi
   n=0
   while IFS=' ' read -r POD CONTAINERS
@@ -246,31 +262,7 @@ do
       ;;
     k ) check_commands KUBE
       ARGS="$OPTARG"
-      # extract the information
-      CONFIG=${ARGS%%,*}
-      PART=${ARGS##*,}
-      export $CONFIG
-      export $PART
-
-	# check for proper format
-      if [[ "${CONFIG%%=*}" = "KUBE_CONFIG" && "${PART%%=*}" = "NAMESPACE" ]]
-      then
-
-      if [[ ! -e $KUBE_CONFIG || ! -s $KUBE_CONFIG ]]; then
-        # provided config doesnt match
-        if [[ -e $KUBE_DEFAULT && -s $KUBE_DEFAULT ]]; then
-          # use default
-          KUBE_CONFIG=$KUBE_DEFAULT
-          export KUBECONFIG=$KUBE_CONFIG
-        else
-          fatal "Cannot find kube-config!"
-        fi
-      fi
       KUBE_FOUND=1
-      
-      else
-        fatal "Argument must be in expected format, see help."
-      fi
       ;;
     l )
       LOGLOCATION="$OPTARG"
@@ -305,5 +297,6 @@ then
   run_docker_command
   attach_sessions
 else
-  usage
+  run_kube_command
+  attach_sessions 
 fi
