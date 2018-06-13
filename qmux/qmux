@@ -112,6 +112,7 @@ run_kube_command()
       COMMAND="$KUBE logs -f $POD -c $CONTAINER -n $NAMESPACE"
       start_split
     done
+    $TMUX renamew $POD 2>/dev/null
     ((n+=1))
   done< <($KUBE get pods -n $NAMESPACE \
 	--ignore-not-found=true \
