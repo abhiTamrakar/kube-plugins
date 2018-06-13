@@ -3,8 +3,8 @@ shortDesc: "Creates multiple terminal by following tail of pod logs"
 longDesc: "Uses tmux>=2.1 to create multiple terminal by following tail of pod logs, each pod has a separate window and containers split by panes"
 example: |
   kubectl plugin qmux -n namepace
-  kubectl plugin qmux -n namepace -s testsession
-  kubectl plugin qmux -n namepace -s testsession --kubeconfig=/path/to/another/kubeconfig
+  kubectl plugin qmux -n namepace -S testsession
+  kubectl plugin qmux -n namepace -S testsession --kubeconfig=/path/to/another/kubeconfig
 command: "./qmux"
 flags:
   - name: "session"
