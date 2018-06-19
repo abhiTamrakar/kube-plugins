@@ -19,16 +19,17 @@
 KUBE=${KUBECTL_PLUGINS_CALLER}
 GET=$(which egrep)
 AWK=$(which awk)
-
+red=$(tput setaf 1)
+normal=$(tput sgr0)
 # define functions
 info()
 {
-  printf '\n%s:%20s\n' "info" "$@"
+  printf '\n\e[34m%s\e[m: %s\n' "INFO" "$@"
 }
 
 fatal()
 {
-  printf '\n%s:%20s\n' "error" "$@"
+  printf '\n\e[31m%s\e[m: %s\n' "ERROR" "$@"
   exit 1
 }
 
@@ -45,10 +46,11 @@ checkcmd()
 print_table()
 {
   #prepare the ground
-  sep='|'
-  printf '\n%s\t%45s\t%20s\n' "POD NAME" "CONTAINER NAME" "NUMBER OF ERROR/EXCEPTION"
-  printf '%s\n' "---------------------------------------------------------------------------"
-  printf '%s\n' "$@"| column -s"$sep" -t
+  first=$(echo -n "$@"|cut -d'|' -f1)
+  second=$(echo -n "$@"|cut -d'|' -f2)
+  third=$(echo -n "$@"|cut -d'|' -f3)
+  printf '\n\e[43m%s|%s|%s\e[m\n' "POD NAME" "CONTAINER NAME" "ERRORED"
+  printf '\e[48m%s|%s|%7s\e[m' "$first" "$second" "$third"
   printf '\n'
 }
 
@@ -82,7 +84,6 @@ get_pod_events()
         -ocustom-columns=LASTSEEN:.lastTimestamp,REASON:.reason,MESSAGE:.message \
         --all-namespaces \
         --ignore-not-found=true
-        info '-----------------------------------------------------------'
       done
   fi
 }
@@ -92,7 +93,8 @@ get_pod_errors()
 {
   for NAMESPACE in ${namespaces[@]}
   do
-    info "Scanning pod logs, Namespace: $NAMESPACE"
+    info "Scanning pod logs, Namespace: ${red}$NAMESPACE${normal}"
+    printf '\n'
     while IFS=' ' read -r POD CONTAINERS
     do
       for CONTAINER in ${CONTAINERS//,/ }
@@ -112,7 +114,9 @@ get_pod_errors()
       done
     done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name|sed '1d')
 #    info "There were ${#STATE[@]} pods found with error/warning in logs"
-    print_table ${STATE[@]:-None}
+    print_table ${STATE[@]:-None} | \
+      sed -e '/^$/d;s/^/|/g;s/$/|/g'|  \
+      column -t -s '|'
     get_pod_events
     STATE=()
     ERRORED=()

@@ -26,17 +26,17 @@ NEWSESSION="${SCRIPT%%.*}$RANDOM"
 # define functions
 info()
 {
-  printf '\n%s:%20s\n' "info" "$@"
+  printf '\n%s: %s\n' "INFO" "$@"
 }
 
 warn()
 {
-  printf '\n%s:%20s\n' "warn" "$@"
+  printf '\n%s: %s\n' "WARN" "$@"
 }
 
 fatal()
 {
-  printf '\n%s:%20s\n' "error" "$@"
+  printf '\n%s: %s\n' "ERROR" "$@"
   exit 1
 }
 
@@ -98,6 +98,7 @@ run_kube_command()
   # only for use with plugin.
   NAMESPACE=${KUBECTL_PLUGINS_LOCAL_FLAG_NAMESPACE:-$KUBECTL_PLUGINS_CURRENT_NAMESPACE}
   THIS_SESSION=${KUBECTL_PLUGINS_LOCAL_FLAG_SESSION:-$NEWSESSION}
+  SHOWERROR="${KUBECTL_PLUGINS_LOCAL_FLAG_ERROR}"
   n=0
   while IFS=' ' read -r POD CONTAINERS
   do
@@ -109,7 +110,14 @@ run_kube_command()
         warn "Looks like there is a problem getting pods data."
         break
       fi
-      COMMAND="$KUBE logs -f $POD -c $CONTAINER -n $NAMESPACE"
+      if [ ${SHOWERROR} -eq 1 ]; then
+        # if enabled
+        COMMAND="$KUBE logs -f $POD -c $CONTAINER -n $NAMESPACE | $GET '[Ee]rror|ERROR|[Ww]arn|WARN|[Ee]xception'"
+      else
+        #normal run
+        COMMAND="$KUBE logs -f $POD -c $CONTAINER -n $NAMESPACE"
+      fi
+
       start_split
     done
     $TMUX renamew $POD 2>/dev/null
