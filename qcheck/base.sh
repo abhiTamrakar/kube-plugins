@@ -50,7 +50,7 @@ print_table()
   second=$(echo -n "$@"|cut -d'|' -f2)
   third=$(echo -n "$@"|cut -d'|' -f3)
   printf '\n\e[43m%s|%s|%s\e[m\n' "POD NAME" "CONTAINER NAME" "ERRORED"
-  printf '\e[48m%s|%s|%7s\e[m' "$first" "$second" "$third"
+  printf '\e[48m%s|%s|%7s\e[m' "${first}" "${second}" "${third%% *}"
   printf '\n'
 }
 
