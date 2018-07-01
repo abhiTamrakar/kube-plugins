@@ -23,12 +23,12 @@ SCRIPT=${0##*/}
 # define functions
 info()
 {
-  printf '\n%s %s:%s\n' "[${SCRIPT%%.*}]" "info" "$@"
+  printf '\n%s %s: %s' "[${SCRIPT%%.*}]" "INFO" "$@"
 }
 
 fatal()
 {
-  printf '\n%s %s:%s\n' "[${SCRIPT%%.*}]" "error" "$@"
+  printf '\n%s %s: %s\n' "[${SCRIPT%%.*}]" "ERROR" "$@"
   exit 1
 }
 
@@ -74,10 +74,10 @@ if [[ $# -ne 0 ]]; then
     if [[ -d $PLUGIN_DIR ]]; then
       # perform operation
       get_permissions $PLUGIN_DIR
-
+      info "installing $PLUGIN_DIR.."
       cp -rp $PLUGIN_DIR $KUBE_DIR/ \
-        && info "request completed" \
-        || fatal "request failed"
+        && echo -e " [DONE]" \
+        || { echo -e " [FAILED]";fatal "Cannot complete request"; }
     else
       fatal "no such directory with name $PLUGIN_DIR"
     fi
