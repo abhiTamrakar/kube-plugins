@@ -11,7 +11,7 @@ a repository for plugins and scripts for kubernetes
 * cd kube-plugins
 
 ## USAGE
-* TO use as K8S Plugin, name convention is kubectl-<plugin name>-<argument>
+* TO use as K8S Plugin, name convention is kubectl-plugin name-argument. Follow https://kubernetes.io/docs/tasks/extend-kubectl/kubectl-plugins/ for more detail.
 * Copy the plugin script to /usr/local/bin/
 * Run below command to see available plugins
 ```
