@@ -1,7 +1,0 @@
-name: qcheck
-shortDesc: "Scans the pods for error in logs with their total count"
-longDesc: "Scans the pod along with their underlying containers for errors in log and print the count. It also prints event of errored pods, not in Running state. The script assumes the kube config be at default location or provided as the first argument to the plug-in."
-example: |
-  kubectl plugin qcheck
-  kubectl plugin qcheck /path/to/kube/config
-command: "./qcheck"

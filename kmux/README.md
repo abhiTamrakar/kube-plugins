@@ -1,8 +1,8 @@
 # README.md
 
-## QMUX
+## KMUX
 
-QMUX is a kubernetes plugin that follows the tail of all pods and containers in a kubernetes cluster and displays them in multiple terminals using tmux.
+KMUX is a simple script that can slo be used as a kubernetes plugin. It follows the tail of all pods and containers in a kubernetes cluster and displays them in multiple terminals using tmux.
 * Pods are created as new windows
 * CONTAINERS are created as splited panes inside the windows.
 
@@ -10,6 +10,3 @@ QMUX is a kubernetes plugin that follows the tail of all pods and containers in 
 * kubectl installed.
 * tmux >= 2.1
 (Tmux is a terminal multiplexer that helps in creating multiple terminals.)
-
-#### Usage
-kubectl plugin qmux -h

@@ -1,7 +1,7 @@
 #!/bin/bash
 # AUTHOR: Abhishek Tamrakar
 # EMAIL: abhishek.tamrakar08@gmail.com
-#	LICENSE: Copyright (C) 2018 Abhishek Tamrakar
+# LICENSE: Copyright (C) 2018 Abhishek Tamrakar
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 ##
+#define the variables
+KUBE_LOC=~/.kube/config
 #define variables
-KUBE=${KUBECTL_PLUGINS_CALLER}
+KUBE=$(which kubectl)
 GET=$(which egrep)
 AWK=$(which awk)
 red=$(tput setaf 1)
@@ -49,8 +51,11 @@ print_table()
   first=$(echo -n "$@"|cut -d'|' -f1)
   second=$(echo -n "$@"|cut -d'|' -f2)
   third=$(echo -n "$@"|cut -d'|' -f3)
-  printf '\n\e[43m%s|%s|%s\e[m\n' "POD NAME" "CONTAINER NAME" "ERRORED"
-  printf '\e[48m%s|%s|%7s\e[m' "${first}" "${second}" "${third%% *}"
+  sizeoffirst=$((${#first} + 5))
+  sizeofsecond=${#second}
+  printf "\n\e[1m%s\e[0m\t\e[32m%s\e[0m" "POD_NAME      " "${first}"
+  printf "\n\e[1m%s\e[0m\t\e[32m%s\e[0m" "CONTAINER_NAME" "${second}"
+  printf "\n\e[1m%s\e[0m\t\e[32m%s\e[0m" "ERRORED       " "${third}"
   printf '\n'
 }
 
@@ -72,9 +77,9 @@ fi
 #get events for pods in errored state
 get_pod_events()
 {
-  info "${#ERRORED[@]} errored pods found."
   if [ ${#ERRORED[@]} -ne 0 ]
   then
+      info "${#ERRORED[@]} errored pods found."
       for CULPRIT in ${ERRORED[@]}
       do
         info "POD: $CULPRIT"
@@ -113,12 +118,44 @@ get_pod_errors()
         fi
       done
     done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name|sed '1d')
-#    info "There were ${#STATE[@]} pods found with error/warning in logs"
-    print_table ${STATE[@]:-None} | \
-      sed -e '/^$/d;s/^/|/g;s/$/|/g'|  \
-      column -t -s '|'
+    print_table ${STATE[@]:-None}
+      #sed -e '/^$/d;s/^/|/g;s/$/|/g'|  \
     get_pod_events
     STATE=()
     ERRORED=()
   done
 }
+#define usage for seprate run
+usage()
+{
+cat << EOF
+
+  USAGE: "${0##*/} </path/to/kube-config>(optional)"
+
+  This program is a free software under the terms of Apache 2.0 License.
+  COPYRIGHT (C) 2018 Abhishek Tamrakar
+
+EOF
+exit 0
+}
+
+#check if basic commands are found
+checkcmd KUBE
+#
+#set the ground
+if [ $# -lt 1 ]; then
+  if [ ! -e ${KUBE_LOC} -a ! -s ${KUBE_LOC} ]
+  then
+    info "A readable kube config location is required!!"
+    usage
+  fi
+elif [ $# -eq 1 ]
+then
+  export KUBECONFIG=$1
+elif [ $# -gt 1 ]
+then
+  usage
+fi
+#play
+get_namespaces
+get_pod_errors
