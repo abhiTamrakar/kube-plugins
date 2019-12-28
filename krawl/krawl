@@ -77,6 +77,7 @@ fi
 #get events for pods in errored state
 get_pod_events()
 {
+  printf '\n'
   if [ ${#ERRORED[@]} -ne 0 ]
   then
       info "${#ERRORED[@]} errored pods found."
@@ -90,6 +91,8 @@ get_pod_events()
         --all-namespaces \
         --ignore-not-found=true
       done
+  else
+      info "0 pods with errored events found."
   fi
 }
 
@@ -111,18 +114,12 @@ get_pod_errors()
             STATE=("${STATE[@]}" "$POD|$CONTAINER|$COUNT")
         else
         #catch pods in errored state
-            ERRORED=($($KUBE get pods -n $NAMESPACE | \
-                sed '1d' |\
+            ERRORED=($($KUBECTL get pods -n $NAMESPACE --no-headers=true | \
                 awk '!/Running/ {print $1}' ORS=" ") \
                 )
         fi
       done
-    done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name|sed '1d')
-    print_table ${STATE[@]:-None}
-      #sed -e '/^$/d;s/^/|/g;s/$/|/g'|  \
-    get_pod_events
-    STATE=()
-    ERRORED=()
+    done< <($KUBECTL get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name --no-headers=true)
   done
 }
 #define usage for seprate run
@@ -159,3 +156,12 @@ fi
 #play
 get_namespaces
 get_pod_errors
+
+printf '\n%40s\n' 'KRAWL'
+printf '%s\n' '---------------------------------------------------------------------------------'
+printf '%s\n' '  Krawl is a command line utility to scan pods and prints name of errored pods   '
+printf '%s\n\n' ' +and containers within. To use it as kubernetes plugin, please check their page '
+printf '%s\n' '================================================================================='
+
+cat results.csv | sed 's/,/,|/g'| column -s ',' -t
+get_pod_events

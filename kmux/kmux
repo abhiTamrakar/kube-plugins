@@ -30,7 +30,7 @@ usage()
     $SCRIPT <options>
 
     options:
-        -n|--namespace:  KUBECTLrnetes NAMESPACE or export NAMESPACE=<value>
+        -n|--namespace:  kubernetes NAMESPACE or export NAMESPACE=<value>
         -s|--session:    Session Name for TMUX
         -e|--show-error: Show only errored pods
         -h|--help:       Print this help and quit
@@ -97,6 +97,7 @@ create_session()
 
 start_split()
 {
+  local n=$1
   check_session
   if [ $IS_SESSION -eq 1 ]; then
     # create session
@@ -133,14 +134,14 @@ run_KUBECTL_command()
         COMMAND="$KUBECTL logs -f $POD -c $CONTAINER -n $NAMESPACE"
       fi
 
-      start_split
+      start_split $n
     done
     $TMUX renamew $POD 2>/dev/null
     ((n+=1))
   done< <($KUBECTL get pods -n $NAMESPACE \
 	--ignore-not-found=true \
-	-o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name| \
-	sed '1d')
+	-o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name \
+	--no-headers=true)
 }
 
 attach_sessions()
