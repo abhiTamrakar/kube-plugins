@@ -143,7 +143,7 @@ run_kubectl_command()
 	-o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name \
 	--no-headers=true)
 
-  attach_sessions ${THIS_SESSION}
+  attach_sessions
 }
 
 attach_sessions()
@@ -166,6 +166,11 @@ while [ $# -gt 0 ]; do
   esac
   shift;
 done
+
+# check number of arguments
+if [[ "x${NAMESPACE}" = "x" ]]; then
+  fatal "At least one namespace is required!"
+fi
 
 # check cli availability
 check_commands
