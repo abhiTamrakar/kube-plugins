@@ -114,12 +114,12 @@ get_pod_errors()
             STATE=("${STATE[@]}" "$POD|$CONTAINER|$COUNT")
         else
         #catch pods in errored state
-            ERRORED=($($KUBECTL get pods -n $NAMESPACE --no-headers=true | \
+            ERRORED=($($KUBE get pods -n $NAMESPACE --no-headers=true | \
                 awk '!/Running/ {print $1}' ORS=" ") \
                 )
         fi
       done
-    done< <($KUBECTL get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name --no-headers=true)
+    done< <($KUBE get pods -n $NAMESPACE --ignore-not-found=true -o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name --no-headers=true)
   done
 }
 #define usage for seprate run

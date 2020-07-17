@@ -109,7 +109,7 @@ start_split()
     select-layout tiled \;
 }
 
-run_KUBECTL_command()
+run_kubectl_command()
 {
   # only for use with plugin.
   local THIS_NAMESPACE=${1}
@@ -142,6 +142,8 @@ run_KUBECTL_command()
 	--ignore-not-found=true \
 	-o=custom-columns=NAME:.metadata.name,CONTAINERS:.spec.containers[*].name \
 	--no-headers=true)
+
+  attach_sessions ${THIS_SESSION}
 }
 
 attach_sessions()
@@ -181,8 +183,8 @@ if [[ "$COMPATIBLE_KUBECTL_VERSION" = "no" ]]; then
   fatal "kubectl version is incompatible, please correct and try again."
 fi
 
+if [[ "x${SESSION_NAME}" = "x" ]]; then
+  SESSION_NAME=$NEWSESSION
+fi
 # run kubectl cli to get details
-run_KUBECTL_command $NAMESPACE $SESSION_NAME $SHOWERROR
-
-# at last attach the parent session
-attach_sessions
+run_kubectl_command ${NAMESPACE} ${SESSION_NAME} ${SHOWERROR}
